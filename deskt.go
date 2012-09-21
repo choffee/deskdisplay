@@ -40,7 +40,9 @@ func (disp *disp) SetSize(c, r byte) {
 	disp.width = c
 	disp.height = r
 	// Create a new blank copy of the content
-	disp.Content = make([][]byte, c, r)
+	for l := byte(0); l < r; l++ {
+		disp.Content = append(disp.Content, make([]byte, c))
+	}
 }
 
 func (disp *disp) clear() {
