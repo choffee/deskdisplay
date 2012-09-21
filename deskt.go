@@ -46,8 +46,8 @@ func (disp *disp) SetSize(c, r byte) {
 func (disp *disp) clear() {
 	msg := []byte{12}
 	disp.Write(msg)
-	for rk, rv := range disp.Content {
-		for ck, cv := range disp.Content[rk] {
+	for rk, _ := range disp.Content {
+		for ck, _ := range disp.Content[rk] {
 			disp.Content[rk][ck] = 0
 		}
 	}
@@ -64,7 +64,7 @@ func (disp *disp) moveTo(c, r byte) {
 // Update the display from a new array
 func (disp *disp) updateScreen(newscreen [][]byte) {
 	// For now just do it via brute force
-	for rk, rv := range newscreen {
+	for rk, _ := range newscreen {
 		disp.putText(string(newscreen[rk]), byte(rk), 0)
 	}
 }
@@ -94,8 +94,7 @@ func (disp *disp) showTime() {
 }
 
 func update_bubbles(screen *[][]byte) {
-	var newval string
-	for rk, rv := range *screen {
+	for rk, _ := range *screen {
 		// First replace all the bubbles with the next stage
 		(*screen)[rk] = bytes.Replace((*screen)[rk], []byte("*"), []byte(" "), -1)
 		(*screen)[rk] = bytes.Replace((*screen)[rk], []byte("Q"), []byte("*"), -1)
@@ -105,7 +104,7 @@ func update_bubbles(screen *[][]byte) {
 		(*screen)[rk] = bytes.Replace((*screen)[rk], []byte("."), []byte("o"), -1)
 		// Now move them up if they can
 		if rk > 0 { // not the top row
-			for ck, cv := range (*screen)[rk] {
+			for ck, _ := range (*screen)[rk] {
 				if bytes.Contains([]byte(".oO0Q*"), []byte{(*screen)[rk][ck]}) {
 					(*screen)[rk][ck] = []byte(" ")[0]
 					(*screen)[rk-1][ck] = (*screen)[rk][ck]
@@ -126,7 +125,7 @@ func add_bubbles(screen *[][]byte) {
 
 func main() {
 	board := new(firmata.Board)
-	board.Device = "/dev/ttyUSB2"
+	board.Device = "/dev/ttyUSB1"
 	board.Baud = 57600
 	board.Debug = 2
 	err := board.Setup()
