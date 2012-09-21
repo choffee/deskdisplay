@@ -127,7 +127,7 @@ func add_bubbles(screen *[][]byte) {
 
 func main() {
 	board := new(firmata.Board)
-	board.Device = "/dev/ttyUSB1"
+	board.Device = "/dev/ttyUSB0"
 	board.Baud = 57600
 	board.Debug = 2
 	err := board.Setup()
