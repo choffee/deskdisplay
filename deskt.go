@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/choffee/gofirmata"
+	"log"
 	"math/rand"
 	"time"
 )
@@ -36,13 +37,15 @@ func (disp *disp) Write(msg []byte) {
 	disp.Board.I2CWrite(disp.Addr, firmata.I2C_MODE_WRITE, newmsg)
 }
 
-func (disp *disp) SetSize(c, r byte) {
+func (disp *disp) SetSize(r, c byte) {
 	disp.width = c
 	disp.height = r
 	// Create a new blank copy of the content
 	for l := byte(0); l < r; l++ {
 		disp.Content = append(disp.Content, make([]byte, c))
 	}
+	disp.cursorC = 0
+	disp.cursorR = 0
 }
 
 func (disp *disp) clear() {
@@ -56,11 +59,14 @@ func (disp *disp) clear() {
 	disp.moveTo(0, 0)
 }
 
-func (disp *disp) moveTo(c, r byte) {
-	msg := []byte{DISPMOVE, c, r}
-	disp.Write(msg)
-	disp.cursorR = r
-	disp.cursorC = c
+func (disp *disp) moveTo(r, c byte) {
+	fmt.Println(r, c)
+	if (r < disp.height) && (c < disp.width) {
+		msg := []byte{DISPMOVE, c, r}
+		disp.Write(msg)
+		disp.cursorR = r
+		disp.cursorC = c
+	}
 }
 
 // Update the display from a new array
@@ -76,7 +82,9 @@ func (disp *disp) write(s string) {
 	disp.Write(msg)
 	for _, v := range s {
 		disp.Content[disp.cursorR][disp.cursorC] = byte(v)
-		disp.cursorC++
+		if disp.cursorC < disp.width {
+			disp.cursorC++
+		}
 	}
 }
 
@@ -118,19 +126,19 @@ func update_bubbles(screen *[][]byte) {
 
 // A better idea may be to add a channel to the function above for doing this.
 func add_bubbles(screen *[][]byte) {
-	for k, _ := range (*screen)[len(*screen)] {
+	for k, _ := range (*screen)[len(*screen)-1] {
 		if rand.Intn(10) > 4 {
-			(*screen)[len(*screen)][k] = []byte(".")[0]
+			(*screen)[len(*screen)-1][k] = []byte(".")[0]
 		}
 	}
 }
 
 func main() {
-	board := new(firmata.Board)
-	board.Device = "/dev/ttyUSB0"
-	board.Baud = 57600
+	board, err := firmata.NewBoard("/dev/ttyUSB0", 57600)
+	if err != nil {
+		log.Fatal("Failed to setup board")
+	}
 	board.Debug = 2
-	err := board.Setup()
 	go func() {
 		for msg := range *board.Reader {
 			fmt.Println(msg)
@@ -139,17 +147,19 @@ func main() {
 	println(err)
 	board.I2CConfig(0)
 	disp := new(disp)
-	disp.SetSize(20, 4)
+	disp.SetSize(4, 20)
 	disp.Board = *board
 	disp.Addr = 0xC6 >> 1
 	disp.clear()
 	go disp.showTime()
 	go func() {
 		update_bubbles(&(disp.Content))
+		disp.updateScreen(disp.Content)
 		time.Sleep(1000 * time.Millisecond)
 	}()
 	go func() {
 		add_bubbles(&(disp.Content))
+		disp.updateScreen(disp.Content)
 		time.Sleep(10000 * time.Millisecond)
 	}()
 	time.Sleep(1000000 * time.Millisecond)
