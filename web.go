@@ -9,10 +9,6 @@ import (
 	"net/http"
 )
 
-type LED struct {
-	color color.Hex
-}
-
 type Page struct {
 	Title  string
 	Color  string
@@ -33,34 +29,26 @@ func (s *Status) String() string {
 // Set the LED to red at start
 // Need to do it here so the first run of the
 // template works
-var led LED = LED{color: color.Hex("FF0000")}
+var led *RGBLED = NewRGBLED(9, 10, 11)
 var status Status = Status{Arduino: false}
-
-func (led *LED) SetRGB(r, g, b byte) {
-	led.color = color.RGBToHex(r, g, b)
-}
-func (led *LED) SetString(c color.Hex) {
-	led.color = c
-}
-func (led *LED) Color() color.Hex {
-	return led.color
-}
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	p := &Page{Title: "My Little LED page",
-		Color:  string(led.Color()),
+		Color:  led.HexString(),
 		Status: status.String()}
 	t, _ := template.ParseFiles("home.html")
 	t.Execute(w, p)
 }
 
 func colorHandler(w http.ResponseWriter, r *http.Request) {
-	led.SetString(color.Hex(r.FormValue("color")))
+	err := led.QuickColor(r.FormValue("color"))
+	if err != nil {
+		log.Printf("Bad color %s\n", r.FormValue("color"))
+	}
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func main() {
-	led.SetString(color.Hex("FF0000"))
 	status.Arduino = false
 	board, err := NewBoard("/dev/ttyUSB1", 57600)
 	if err != nil {
@@ -68,9 +56,9 @@ func main() {
 	} else {
 		status.Arduino = true
 	}
-	board.SetPinMode(9, MODE_PWM)
-	board.SetPinMode(10, MODE_PWM)
-	board.SetPinMode(11, MODE_PWM)
+	led.SetupPins(board)
+	led.QuickColor("red")
+	led.SendColor(board)
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/setColor", colorHandler)
 	http.Handle("/script/", http.StripPrefix("/script/", http.FileServer(http.Dir("js"))))
