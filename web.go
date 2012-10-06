@@ -2,7 +2,7 @@
 package main
 
 import (
-	"code.google.com/p/gorilla/color"
+	// "code.google.com/p/gorilla/color"
 	. "github.com/choffee/gofirmata"
 	"html/template"
 	"log"
@@ -31,6 +31,7 @@ func (s *Status) String() string {
 // template works
 var led *RGBLED = NewRGBLED(9, 10, 11)
 var status Status = Status{Arduino: false}
+var board *Board
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	p := &Page{Title: "My Little LED page",
@@ -43,20 +44,34 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 func colorHandler(w http.ResponseWriter, r *http.Request) {
 	err := led.QuickColor(r.FormValue("color"))
 	if err != nil {
+		log.Println(err)
 		log.Printf("Bad color %s\n", r.FormValue("color"))
 	}
+	led.SendColor(board)
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func main() {
 	status.Arduino = false
-	board, err := NewBoard("/dev/ttyUSB1", 57600)
+	var err error
+	board, err = NewBoard("/dev/ttyUSB0", 57600)
 	if err != nil {
 		log.Println("Could not connect to Arduino, do you have the right port?")
 	} else {
 		status.Arduino = true
 	}
+	board.Debug = 99
+	// Wait for the version message before we start anything
+	log.Printf("Msg: %v", <-board.Reader)
+	// For now just print the msg we receive
+	go func() {
+		for {
+			log.Printf("Msg: %v", <-board.Reader)
+		}
+	}()
+	log.Printf("Ver: %d.%d", board.Version()["major"], board.Version()["minor"])
 	led.SetupPins(board)
+	led.Invert = true
 	led.QuickColor("red")
 	led.SendColor(board)
 	http.HandleFunc("/", homeHandler)
